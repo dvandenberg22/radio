@@ -1,0 +1,954 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<title>Radiostreams NL</title>
+<meta name="description" content="Luister naar Nederlandse webradio, bekijk live beeld en cast naar je tv of speaker.">
+<meta name="theme-color" content="#f3f5f9" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0b0f1f" media="(prefers-color-scheme: dark)">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Radio">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="icon" href="favicon-32.png" sizes="32x32" type="image/png">
+<link rel="icon" href="favicon.ico" sizes="48x48">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Figtree:wght@400;500;600&display=swap">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/hls.js/1.5.17/hls.min.js"></script>
+<style>
+/* Layout: sticky zoekbalk + chips boven, kaartenraster in het midden, vaste speler onderaan, zwevend beeldpaneel */
+:root{
+  --bg:#f3f5f9; --surface:#ffffff; --surface2:#e8ecf5; --fg:#12182b; --muted:#59647f; --line:#d8deec;
+  --accent:#2f5bff; --accent-fg:#ffffff; --danger:#c23b3b; --shadow:0 8px 30px rgba(18,24,43,.12);
+  --font-display:"Bricolage Grotesque","Segoe UI",system-ui,sans-serif;
+  --font-body:"Figtree","Segoe UI",system-ui,sans-serif;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#0b0f1f; --surface:#141a2f; --surface2:#1d2543; --fg:#eaeefc; --muted:#98a3c6; --line:#262f50;
+    --accent:#7494ff; --accent-fg:#0b0f1f; --danger:#ff7b7b; --shadow:0 8px 30px rgba(0,0,0,.45);
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0b0f1f; --surface:#141a2f; --surface2:#1d2543; --fg:#eaeefc; --muted:#98a3c6; --line:#262f50;
+  --accent:#7494ff; --accent-fg:#0b0f1f; --danger:#ff7b7b; --shadow:0 8px 30px rgba(0,0,0,.45);
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--fg);font:400 16px/1.45 var(--font-body);padding-bottom:130px}
+button,input{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px;border-radius:8px}
+.wrap{max-width:1280px;margin:0 auto;padding-inline:16px}
+
+header.top{position:sticky;top:0;z-index:20;padding-top:env(safe-area-inset-top,0px);background:color-mix(in srgb,var(--bg) 88%,transparent);backdrop-filter:blur(12px);border-bottom:1px solid var(--line)}
+.bar{display:flex;gap:12px;align-items:center;padding-block:12px;flex-wrap:wrap}
+.brand{font:800 1.5rem/1 var(--font-display);letter-spacing:-.02em;margin-right:auto;display:flex;align-items:center;gap:10px}
+.brand svg{width:30px;height:30px;color:var(--accent)}
+.brand small{font:500 .8rem var(--font-body);color:var(--muted);letter-spacing:0}
+.search{flex:1 1 260px;max-width:420px;position:relative}
+.search input{width:100%;padding:11px 14px 11px 40px;border-radius:12px;border:1px solid var(--line);background:var(--surface);outline-offset:2px}
+.search svg{position:absolute;left:12px;top:50%;transform:translateY(-50%);width:18px;height:18px;color:var(--muted)}
+.iconbtn{width:42px;height:42px;border-radius:12px;border:1px solid var(--line);background:var(--surface);display:grid;place-items:center}
+.iconbtn:hover{background:var(--surface2)}
+.iconbtn svg{width:20px;height:20px}
+.chips{display:flex;gap:8px;overflow-x:auto;padding-bottom:12px;scrollbar-width:thin}
+.chip{flex:none;padding:7px 14px;border-radius:999px;border:1px solid var(--line);background:var(--surface);font-weight:500;font-size:.9rem;white-space:nowrap}
+.chip:hover{background:var(--surface2)}
+.chip[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-fg)}
+
+.meta{display:flex;justify-content:space-between;align-items:baseline;padding-block:18px 6px;gap:12px;flex-wrap:wrap}
+.meta h1{font:800 1.35rem var(--font-display);margin:0;letter-spacing:-.01em}
+.meta span{color:var(--muted);font-size:.9rem}
+
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px;padding-block:8px 24px}
+.card{position:relative;display:flex;gap:12px;align-items:center;text-align:left;padding:12px;border-radius:16px;border:1px solid var(--line);background:var(--surface);min-width:0;width:100%}
+.card:hover{border-color:color-mix(in srgb,var(--accent) 50%,var(--line))}
+.card[aria-current="true"]{border-color:var(--accent);box-shadow:0 0 0 2px color-mix(in srgb,var(--accent) 35%,transparent)}
+.tile{flex:none;width:52px;height:52px;border-radius:14px;display:grid;place-items:center;color:#fff;font:800 1.15rem var(--font-display);letter-spacing:-.02em;position:relative;overflow:hidden}
+.card .txt{min-width:0;flex:1;padding-right:30px}
+.card .name{font-weight:600;line-height:1.25;overflow-wrap:anywhere;display:block}
+.card .sub{font-size:.8rem;color:var(--muted);display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.badge{font-size:.68rem;font-weight:600;letter-spacing:.04em;text-transform:uppercase;padding:1px 7px;border-radius:999px;background:var(--accent);color:var(--accent-fg)}
+.card .fav,.card .del{position:absolute;top:8px;right:8px;width:30px;height:30px;border-radius:9px;border:0;background:transparent;display:grid;place-items:center;color:var(--muted)}
+.card .del{top:auto;bottom:8px}
+.card .fav:hover,.card .del:hover{background:var(--surface2)}
+.card .fav[aria-pressed="true"]{color:#e0457b}
+.card .fav svg,.card .del svg{width:18px;height:18px}
+.eq{position:absolute;inset:0;background:rgba(10,14,30,.62);display:none;align-items:flex-end;justify-content:center;gap:3px;padding-bottom:13px}
+.card[aria-current="true"] .eq{display:flex}
+.eq i{width:4px;height:6px;background:#fff;border-radius:2px;animation:eq 0.9s ease-in-out infinite}
+.eq i:nth-child(2){animation-delay:-.3s}.eq i:nth-child(3){animation-delay:-.6s}
+body:not(.is-playing) .eq i{animation-play-state:paused}
+@keyframes eq{0%,100%{height:6px}50%{height:22px}}
+.empty{grid-column:1/-1;padding:48px 16px;text-align:center;color:var(--muted)}
+
+/* Speler */
+.player{position:fixed;left:0;right:0;bottom:0;z-index:30;background:var(--surface);border-top:1px solid var(--line);box-shadow:var(--shadow);padding:10px 16px calc(10px + env(safe-area-inset-bottom,0px))}
+.player .in{max-width:1280px;margin:0 auto;display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);gap:16px;align-items:center}
+.now{display:flex;gap:12px;align-items:center;min-width:0}
+.now .tile{width:48px;height:48px;border-radius:12px;background:var(--surface2);color:var(--muted)}
+.now .t{min-width:0}
+.now .t b{display:block;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.now .t span{display:block;font-size:.85rem;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.now .t span.err{color:var(--danger)}
+.live{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--danger);margin-right:6px;vertical-align:middle}
+.ctrl{display:flex;gap:8px;align-items:center}
+.ctrl button{width:44px;height:44px;border-radius:50%;border:0;background:transparent;display:grid;place-items:center}
+.ctrl button:hover{background:var(--surface2)}
+.ctrl button svg{width:22px;height:22px}
+.ctrl .play{width:56px;height:56px;background:var(--accent);color:var(--accent-fg)}
+.ctrl .play:hover{background:var(--accent);filter:brightness(1.08)}
+.ctrl .play svg{width:26px;height:26px}
+.right{display:flex;gap:10px;align-items:center;justify-content:flex-end}
+.right input[type=range]{width:110px;accent-color:var(--accent)}
+.pill{display:flex;gap:6px;align-items:center;height:42px;padding:0 14px;border-radius:12px;border:1px solid var(--line);background:var(--surface);font-weight:500;font-size:.9rem}
+.pill:hover{background:var(--surface2)}
+.pill svg{width:20px;height:20px}
+.pill[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-fg)}
+
+/* Beeldpaneel */
+.vpanel{position:fixed;right:16px;bottom:calc(100px + env(safe-area-inset-bottom,0px));z-index:25;width:min(480px,calc(100vw - 32px));background:#000;border-radius:16px;overflow:hidden;box-shadow:var(--shadow);border:1px solid var(--line)}
+.vpanel video{display:block;width:100%;aspect-ratio:16/9;background:#000}
+.vpanel .cap{position:absolute;top:8px;left:8px;right:8px;display:flex;justify-content:space-between;pointer-events:none}
+.vpanel .cap span{background:rgba(0,0,0,.6);color:#fff;font-size:.8rem;padding:3px 10px;border-radius:999px}
+.vpanel .cap button{pointer-events:auto;border:0;background:rgba(0,0,0,.6);color:#fff;border-radius:999px;width:30px;height:30px}
+
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(110px + env(safe-area-inset-bottom,0px));z-index:40;background:var(--fg);color:var(--bg);padding:10px 16px;border-radius:12px;max-width:min(520px,calc(100vw - 32px));box-shadow:var(--shadow);font-size:.92rem}
+
+dialog{border:1px solid var(--line);border-radius:18px;background:var(--surface);color:var(--fg);padding:0;width:min(460px,calc(100vw - 32px))}
+dialog::backdrop{background:rgba(5,8,20,.55)}
+dialog form{padding:20px;display:grid;gap:14px}
+dialog h2{margin:0;font:800 1.2rem var(--font-display)}
+dialog label{display:grid;gap:5px;font-weight:500;font-size:.9rem}
+dialog label small{color:var(--muted);font-weight:400}
+dialog input{padding:10px 12px;border-radius:10px;border:1px solid var(--line);background:var(--bg)}
+dialog .row{display:flex;gap:10px;justify-content:flex-end}
+.btn{padding:10px 18px;border-radius:12px;border:1px solid var(--line);background:var(--surface);font-weight:600}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-fg)}
+
+@media (max-width:760px){
+  body{padding-bottom:168px}
+  .player .in{grid-template-columns:minmax(0,1fr) auto;gap:10px 12px}
+  .right{grid-column:1/-1;justify-content:space-between}
+  .right input[type=range]{flex:1;width:auto}
+  .vpanel{bottom:calc(158px + env(safe-area-inset-bottom,0px));right:16px;left:16px;width:auto}
+  .toast{bottom:calc(170px + env(safe-area-inset-bottom,0px))}
+  .pill span{display:none}
+  .pill{padding:0 12px}
+}
+@media (prefers-reduced-motion:reduce){.eq i{animation:none;height:14px}}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="wrap">
+    <div class="bar">
+      <div class="brand">
+        <svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><circle cx="16" cy="18" r="3.2" fill="currentColor" stroke="none"/><path d="M9.5 11.5a9.2 9.2 0 0 0 0 13M22.5 11.5a9.2 9.2 0 0 1 0 13M5 7.5a15.5 15.5 0 0 0 0 21M27 7.5a15.5 15.5 0 0 1 0 21"/></svg>
+        <span>Radiostreams <small id="count"></small></span>
+      </div>
+      <div class="search">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+        <input id="q" type="search" placeholder="Zoek een zender" aria-label="Zoek een zender" autocomplete="off">
+      </div>
+      <button class="pill" id="installBtn" hidden title="Installeer als app"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11M7.5 10.5 12 15l4.5-4.5M5 19h14"/></svg><span>Installeer</span></button>
+      <button class="iconbtn" id="addBtn" title="Eigen zender toevoegen" aria-label="Eigen zender toevoegen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></button>
+      <button class="iconbtn" id="themeBtn" title="Thema wisselen" aria-label="Thema wisselen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg></button>
+    </div>
+    <div class="chips" id="chips" role="group" aria-label="Categorie"></div>
+  </div>
+</header>
+
+<main class="wrap">
+  <div class="meta"><h1 id="heading">Alle zenders</h1><span id="hint"></span></div>
+  <div class="grid" id="grid"></div>
+</main>
+
+<div class="vpanel" id="vpanel" hidden>
+  <video id="media" playsinline preload="none"></video>
+  <div class="cap"><span id="vname"></span><button id="vclose" aria-label="Alleen audio" title="Alleen audio">✕</button></div>
+</div>
+
+<footer class="player">
+  <div class="in">
+    <div class="now">
+      <div class="tile" id="nowTile"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 18V5l11-2v13"/><circle cx="6.5" cy="18" r="2.5"/><circle cx="17.5" cy="16" r="2.5"/></svg></div>
+      <div class="t"><b id="nowName">Kies een zender</b><span id="nowStatus">Tik op een zender om te luisteren</span></div>
+    </div>
+    <div class="ctrl">
+      <button id="prev" aria-label="Vorige zender"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 5h2v14H6zM20 5v14L9.5 12z"/></svg></button>
+      <button class="play" id="toggle" aria-label="Afspelen"><svg id="icoPlay" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg><svg id="icoPause" viewBox="0 0 24 24" fill="currentColor" hidden><path d="M7 5h4v14H7zM13 5h4v14h-4z"/></svg></button>
+      <button id="next" aria-label="Volgende zender"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M16 5h2v14h-2zM4 5l10.5 7L4 19z"/></svg></button>
+    </div>
+    <div class="right">
+      <button class="pill" id="videoBtn" aria-pressed="false" hidden title="Live beeld tonen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="6" width="13" height="12" rx="2"/><path d="m16 10 5-3v10l-5-3z"/></svg><span>Beeld</span></button>
+      <button class="pill" id="castBtn" aria-pressed="false" title="Casten naar tv of speaker"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8V6a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-5"/><path d="M3 12a9 9 0 0 1 9 9M3 16a5 5 0 0 1 5 5M3 20h.01"/></svg><span>Cast</span></button>
+      <input type="range" id="vol" min="0" max="1" step="0.01" value="0.8" aria-label="Volume">
+    </div>
+  </div>
+</footer>
+
+<dialog id="dlg">
+  <form method="dialog" id="addForm">
+    <h2>Eigen zender toevoegen</h2>
+    <label>Naam<input id="fName" required maxlength="60" placeholder="Bijvoorbeeld Radio Dorpsstraat"></label>
+    <label>Stream-adres<small>Een mp3-, aac- of m3u8-link</small><input id="fUrl" required type="url" placeholder="https://…"></label>
+    <label>Adres voor live beeld<small>Optioneel, een m3u8-link met video</small><input id="fVideo" type="url" placeholder="https://…"></label>
+    <div class="row"><button type="button" class="btn" id="fCancel">Annuleren</button><button class="btn primary" type="submit">Toevoegen</button></div>
+  </form>
+</dialog>
+
+<script id="data" type="text/plain">
+# Landelijk commercieel
+4EVER49 Radio | https://playerservices.streamtheworld.com/api/livestream-redirect/4EVER49.mp3
+100%NL | https://stream.100p.nl/100pctnl.mp3
+100%NL Feest | https://stream.100p.nl/web01_mp3
+100%NL Liefde | https://stream.100p.nl/web03_mp3
+100%NL Nederpop | https://stream.100p.nl/web04_mp3
+100%NL Non-Stop | https://stream.100p.nl/web02_mp3
+100%NL Puur | https://stream.100p.nl/web06_mp3
+100%NL Zomer | https://stream.100p.nl/web05_mp3
+538 | https://playerservices.streamtheworld.com/api/livestream-redirect/RADIO538.mp3
+538 Classics | https://playerservices.streamtheworld.com/api/livestream-redirect/TLPSTR08.mp3
+538 Dance Dept. | https://playerservices.streamtheworld.com/api/livestream-redirect/TLPSTR01.mp3
+538 Hitzone | https://playerservices.streamtheworld.com/api/livestream-redirect/TLPSTR11.mp3
+538 Ibiza | https://playerservices.streamtheworld.com/api/livestream-redirect/TLPSTR19.mp3
+538 Non-Stop | https://playerservices.streamtheworld.com/api/livestream-redirect/TLPSTR09.mp3
+538 Party | https://playerservices.streamtheworld.com/api/livestream-redirect/TLPSTR16.mp3
+538 Top 50 | https://playerservices.streamtheworld.com/api/livestream-redirect/TLPSTR13.mp3
+538 90s Hits | https://playerservices.streamtheworld.com/api/livestream-redirect/TLPSTR21.mp3
+538 Zomer | https://playerservices.streamtheworld.com/api/livestream-redirect/TLPSTR06.mp3
+538 Oranje Beat | https://playerservices.streamtheworld.com/api/livestream-redirect/TLPSTR07.mp3
+Arrow Bluesrock | https://playerservices.streamtheworld.com/api/livestream-redirect/ARROWBLUESBOX.mp3
+Arrow CAZ! | https://playerservices.streamtheworld.com/api/livestream-redirect/ARROWCAZ.mp3
+Arrow Rock Radio | https://stream.arrowrockradio.com/arrowrockradio
+Arrow Classic Rock | https://stream.player.arrow.nl/arrow https://stream.gal.io/arrow
+BNR Nieuwsradio | https://stream.bnr.nl/bnr_mp3_128_20 https://stream.bnr.nl/bnr_aac_96_20
+BNR Business Beats | https://playerservices.streamtheworld.com/api/livestream-redirect/BNR_BUSINESS_BEATS.mp3
+Classic NL | https://stream.classic.nl/classicnl.mp3
+Classic NL Mind Radio | https://stream.classic.nl/classicnl-mindradio.mp3
+Classic NL Opera | https://stream.classic.nl/classicnl-opera.mp3
+Classic NL Soundtracks | https://stream.classic.nl/classicnl-soundtracks.mp3
+Cream | https://playerservices.streamtheworld.com/api/livestream-redirect/CREAM.mp3
+Joe | https://stream.joe.nl/joe/mp3
+Jumbo Radio | https://playerservices.streamtheworld.com/api/livestream-redirect/JUMBORADIO.mp3
+KINK No Alternative | https://playerservices.streamtheworld.com/api/livestream-redirect/KINK.mp3
+KINK Distortion | https://playerservices.streamtheworld.com/api/livestream-redirect/KINK_DISTORTION.mp3
+KINK 80's | https://playerservices.streamtheworld.com/api/livestream-redirect/KINK_DNA.mp3
+KINK 90s | https://playerservices.streamtheworld.com/api/livestream-redirect/KINK_90S.mp3
+Kiss FM | https://stream.kissfm.nl/kissfm https://stream.kissfm.amsterdam/kissfm
+Nora FM | https://caster05.streampakket.com/proxy/rein1234
+Nostalgie | https://playerservices.streamtheworld.com/api/livestream-redirect/NOSTALGIENL.mp3
+Pinguin Radio Indie | https://streams.pinguinradio.com/PinguinRadio320.mp3 https://streams.pinguinradio.com/PinguinRadio192.mp3
+Pinguin Classics | https://streams.pinguinradio.com/PinguinClassics192.mp3
+Pinguin On the Rocks | https://streams.pinguinradio.com/PinguinOnTheRocks192.mp3
+Pinguin Pop | https://samcloud.spacial.com/api/listen?sid=98586&m=sc&rid=174409 https://playerservices.streamtheworld.com/api/livestream-redirect/SP_R2591862_SC.mp3
+Pinguin Aardschok | https://streams.pinguinradio.com/Aardschok192.mp3
+Pinguin Grooves | https://samcloud.spacial.com/api/listen?sid=98587&m=sc&rid=174412 https://playerservices.streamtheworld.com/api/livestream-redirect/SP_R2591867_SC.mp3
+Pinguin Fiësta | https://playerservices.streamtheworld.com/api/livestream-redirect/SP_R2292843_SC.mp3
+Pinguin Pluche | https://samcloud.spacial.com/api/listen?sid=98569&m=sc&rid=174384 https://playerservices.streamtheworld.com/api/livestream-redirect/SP_R2591410_SC.mp3
+Pinguin Blues | https://samcloud.spacial.com/api/listen?sid=93462&m=sc&rid=168006&t=ssl https://playerservices.streamtheworld.com/api/livestream-redirect/SP_R2406394_SC.mp3
+Pinguin World | https://samcloud.spacial.com/api/listen?sid=98570&m=sc&rid=174387 https://playerservices.streamtheworld.com/api/livestream-redirect/SP_R2591417_SC.mp3
+Pinguin Vintage | https://samcloud.spacial.com/api/listen?sid=131111&m=sc&rid=275910&t=ssl https://playerservices.streamtheworld.com/api/livestream-redirect/SP_R4017895_SC.mp3
+Pinguin Showcase | https://samcloud.spacial.com/api/listen?sid=110690&m=sc&rid=190799&t=ssl https://playerservices.streamtheworld.com/api/livestream-redirect/SP_R3045093_SC.mp3
+Qmusic | https://stream.qmusic.nl/qmusic/mp3 https://icecast-qmusicnl-cdp.triple-it.nl/Qmusic_nl_live.mp3
+Qmusic Nederlandstalig | https://stream.qmusic.nl/nederlandstalig/mp3
+Qmusic Foute Uur | https://stream.qmusic.nl/fouteuur/mp3
+Qmusic Non-Stop | https://stream.qmusic.nl/nonstop/mp3
+Qmusic Summer | https://stream.qmusic.nl/thema/mp3
+Qmusic Top 40 | https://stream.qmusic.nl/top40/mp3
+One World Radio | https://playerservices.streamtheworld.com/api/livestream-redirect/OWR_WORLD_RADIO_NL.mp3
+Qmusic Limburg | https://icecast-qmusicnl-cdp.triple-it.nl/Qmusic_qlmb.mp3
+Radio 10 | https://playerservices.streamtheworld.com/api/livestream-redirect/RADIO10.mp3
+Radio 10 60's & 70's Hits | https://playerservices.streamtheworld.com/api/livestream-redirect/TLPSTR18.mp3
+Radio 10 80's Hits | https://playerservices.streamtheworld.com/api/livestream-redirect/TLPSTR20.mp3
+Radio 10 90's Hits | https://playerservices.streamtheworld.com/api/livestream-redirect/TLPSTR22.mp3
+Radio 10 Love Songs | https://playerservices.streamtheworld.com/api/livestream-redirect/TLPSTR04.mp3
+Radio 10 Disco Classics | https://playerservices.streamtheworld.com/api/livestream-redirect/TLPSTR23.mp3
+Radio 10 Non-Stop | https://playerservices.streamtheworld.com/api/livestream-redirect/TLPSTR15.mp3
+Radio 10 Top 4000 | https://playerservices.streamtheworld.com/api/livestream-redirect/TLPSTR24.mp3
+Radio 972 | https://playerservices.streamtheworld.com/api/livestream-redirect/RADIO972.mp3
+Radio Noordzee | https://playerservices.streamtheworld.com/api/livestream-redirect/TLPSTR17.mp3
+Radio Veronica | https://playerservices.streamtheworld.com/api/livestream-redirect/VERONICA.mp3
+Veronica Alternative | https://playerservices.streamtheworld.com/api/livestream-redirect/SRGSTR12.mp3
+Vintage Veronica | https://playerservices.streamtheworld.com/api/livestream-redirect/SRGSTR09.mp3
+Veronica Rockradio | https://playerservices.streamtheworld.com/api/livestream-redirect/SRGSTR11.mp3
+Veronica Top 1000 Allertijden | https://playerservices.streamtheworld.com/api/livestream-redirect/SRGSTR10.mp3
+Sky Radio | https://playerservices.streamtheworld.com/api/livestream-redirect/SKYRADIO.mp3
+Sky Hits | https://playerservices.streamtheworld.com/api/livestream-redirect/SRGSTR01.mp3
+Sky Summer Hits | https://playerservices.streamtheworld.com/api/livestream-redirect/SRGSTR28.mp3
+Sky LoveSongs | https://playerservices.streamtheworld.com/api/livestream-redirect/SRGSTR03.mp3
+Sky Non-Stop@Work | https://playerservices.streamtheworld.com/api/livestream-redirect/SRGSTR24.mp3
+Sky Smooth Hits | https://playerservices.streamtheworld.com/api/livestream-redirect/SRGSTR15.mp3
+Sky 80's Hits | https://playerservices.streamtheworld.com/api/livestream-redirect/SRGSTR04.mp3
+Sky 90's Hits | https://playerservices.streamtheworld.com/api/livestream-redirect/SRGSTR05.mp3
+Sky Nice & Easy | https://playerservices.streamtheworld.com/api/livestream-redirect/SRGSTR07.mp3
+Sky Christmas | https://playerservices.streamtheworld.com/api/livestream-redirect/SRGSTR08.mp3
+Slam! | https://stream.slam.nl/slam_mp3
+Slam! 40 | https://stream.slam.nl/web14_mp3
+Slam! 00 | https://stream.slam.nl/web15_mp3
+Slam! Hardstyle | https://stream.slam.nl/web11_mp3
+Slam! Housuh In De Pauzuh | https://stream.slam.nl/web16_mp3
+Slam! MixMarathon | https://stream.slam.nl/web13_mp3
+Slam! Non-Stop | https://stream.slam.nl/web10_mp3
+Slam! Summer | https://stream.slam.nl/web08_mp3
+Slam! The Boom Room | https://stream.slam.nl/web12_mp3
+Slam! Juize | https://stream.slam.nl/web09_mp3
+Sublime | https://playerservices.streamtheworld.com/api/livestream-redirect/SUBLIME.mp3
+Sublime Jazz | https://stream.sublime.nl/web21_mp3
+Sublime Soul Classics | https://stream.sublime.nl/web22_mp3
+Sublime R&B 90's & 00's | https://stream.sublime.nl/web20_mp3
+Sublime Sunday Chill | https://stream.sublime.nl/web23_mp3
+Sunlite | https://playerservices.streamtheworld.com/api/livestream-redirect/SUNLITE_MP3.mp3
+Yoursafe Radio | https://streams.radiomast.io/7f5e877e-8c01-4a7b-9435-c8bfd21f25cc
+ALLsportradio | https://streaming.hofhosting.nl/proxy/allsports_main?mp=/stream
+GoodLIFE Radio | https://streaming.hofhosting.nl/proxy/goodlife_main
+New Business Radio | http://2.trafficstream.nl/business_main.mp3
+Traffic Radio | http://2.trafficstream.nl/traffic_main.mp3
+ZTACK | https://audio.ztack.nl/radio/8000/ztack
+
+# NPO
+NPO Radio 1 | https://icecast.omroep.nl/radio1-bb-mp3
+NPO Radio 2 | https://icecast.omroep.nl/radio2-bb-mp3
+NPO Radio 2 Soul & Jazz | https://icecast.omroep.nl/radio6-bb-mp3
+NPO Sterren.nl | https://icecast.omroep.nl/radio2-sterrennl-mp3
+NPO 3FM | https://icecast.omroep.nl/3fm-bb-mp3
+NPO Campus Radio | https://icecast.omroep.nl/3fm-serioustalent-mp3
+NPO Klassiek | https://icecast.omroep.nl/radio4-bb-mp3
+NPO Radio 5 | https://icecast.omroep.nl/radio5-bb-mp3
+NPO Blend | https://icecast.omroep.nl/npoblend-bb-mp3
+FunX NL | https://icecast.omroep.nl/funx-bb-mp3
+FunX Afro | https://icecast.omroep.nl/funx-reggae-bb-mp3
+FunX Arab Radio | https://icecast.omroep.nl/funx-arab-bb-mp3
+FunX Fissa | https://icecast.omroep.nl/funx-dance-bb-mp3
+FunX Hip Hop | https://icecast.omroep.nl/funx-hiphop-bb-mp3
+FunX Latin | https://icecast.omroep.nl/funx-latin-bb-mp3
+FunX Slow Jamz | https://icecast.omroep.nl/funx-slowjamz-bb-mp3
+FunX Amsterdam | https://icecast.omroep.nl/funx-amsterdam-bb-mp3
+FunX Den Haag | https://icecast.omroep.nl/funx-denhaag-bb-mp3
+FunX Rotterdam | https://icecast.omroep.nl/funx-rotterdam-bb-mp3
+FunX Utrecht | https://icecast.omroep.nl/funx-utrecht-bb-mp3
+
+# Interprovinciaal
+Alles Plat | https://mediacdn.rtvoost.nl/icecast/rtvoost/alles-plat-mp3
+Radio Continu Editie 1 | https://stream.radiocontinu.nl/radiocontinu
+Radio Continu Editie 2 (Friesland) | https://stream.radiocontinu.nl/radiocontinu-2
+Radio Continu Editie 3 | https://stream.radiocontinu.nl/radiocontinu-3
+RadioNL | https://stream.radionl.fm/radionl
+RadioNL Groningen | https://stream.radionl.fm/rnlgroningen
+RadioNL Friesland | https://stream.radionl.fm/rnlfriesland
+RadioNL Assen | https://stream.radionl.fm/rnlassen
+RadioNL Emmen | https://stream.radionl.fm/rnlemmen
+RadioNL Hoogeveen | https://stream.radionl.fm/rnlhoogeveen
+RadioNL Twente | https://stream.radionl.fm/rnltwente
+RadioNL Zwolle / Flevoland | https://stream.radionl.fm/rnloverijssel
+RadioNL Apeldoorn / Deventer | https://stream.radionl.fm/rnlapeldoorn
+RadioNL Achterhoek | https://stream.radionl.fm/rnlachterhoek
+RadioNL Arnhem | https://stream.radionl.fm/rnlarnhem
+RadioNL Nijmegen | https://stream.radionl.fm/rnlnijmegen
+RadioNL Utrecht | https://stream.radionl.fm/rnlutrecht
+RadioNL Noord-Holland | https://stream.radionl.fm/rnlnoordholland
+RadioNL Amsterdam | https://stream.radionl.fm/rnlamsterdam
+RadioNL Zuid-Holland | https://stream.radionl.fm/rnlzuidholland
+RadioNL Zeeland | https://stream.radionl.fm/rnlzeeland
+RadioNL West-Brabant | https://stream.radionl.fm/rnlwestbrabant
+RadioNL Midden-Brabant | https://stream.radionl.fm/rnlmiddenbrabant
+RadioNL Noordoost-Brabant | https://stream.radionl.fm/rnlnoordoostbrabant
+RadioNL Zuidoost-Brabant | https://stream.radionl.fm/rnlzuidoostbrabant
+RadioNL Kids | https://stream.radionlkids.nl/rnlkids
+Rivierenland Radio | https://playerservices.streamtheworld.com/api/livestream-redirect/RIVIERENLANDRADIO.mp3 https://server-26.stream-server.nl:8400/stream
+
+# Groningen
+Groningen1 (RTV G1) | https://icecast.radiowesterwolde.nl:8443/G1_master
+Grunn FM | https://stream.grunnfm.nl/grunnfm
+LOL FM Leek | https://nlpo.stream.vip/lolfm/mp3-192/nlpo.stream.vip/
+Omroep Eemsdelta | https://streams.radiomast.io/063fcf6f-4083-4c4e-85a8-31b0a709f40d
+Omroep Het Hogeland | https://nlpo.stream.vip/Hogeland/mp3-192/nlpo.stream.vip/
+OOG Radio | https://nlpo.stream.vip/oogfm/mp3-192/nlpo.stream.vip/
+Radio Westerwolde | https://icecast.radiowesterwolde.nl:8443/G1_RWW
+Regio FM Groningen | http://audiostreamen.nl:8030/stream
+RTV1 Stadskanaal Veendam | https://nlpo.stream.vip/rtv1stad/mp3-192/nlpo.stream.vip/
+RTV GO! | https://icecast.radiowesterwolde.nl:8443/G1_RTVLOGO
+RTV Noord | https://media.rtvnoord.nl/icecast/rtvnoord/radio
+RTV Sellingen | https://rtvsellingen.stream.laut.fm/rtvsellingen
+RTV Zulthe | https://stream.lgbrental.nl/listen/zulthe/stream.mp3
+
+# Fryslân
+Frysk FM | http://stream.frysk.fm/fryskfm
+LEO Middelsé | https://ms2.mx-cd.net/dtv-21/238-2265264/LEO_Middelse_Radio.smil/playlist.m3u8
+Lokale Omroep Ameland | https://loa.beheerstream.nl:8040/stream
+Odrie | http://odrie.ddns.net:8500/;
+Omrop Fryslân | https://d3pvma9xb2775h.cloudfront.net/icecast/omropfryslan/radio.mp3
+Omroep Súdwest | https://nlpo.stream.vip/sudwest/mp3-192/nlpo.stream.vip/
+Omroep Zilt | https://omroepzilt1.streampartner.nl/live?type=.mp3
+Radio Spannenburg | https://stream.radiospannenburg.nl/radiospannenburg
+Radio Stad Harlingen | http://server-09.stream-server.nl:8516
+Radio Weststellingwerf Centraal | https://nlpo.stream.vip/weststel/mp3-192/nlpo.stream.vip/
+RTV NOF | https://stream.rtvnof.nl/rtvnof1
+Smelne FM | https://smelnefm_icecast.streampartner.nl/live
+Waterstad FM | https://stream.waterstadfm.nl/waterstadfm
+
+# Drenthe
+DNO Radio Zuidwest Drenthe | https://dnomedia.rtvstream.nl:8046/dno1
+Lokale Omroep Hoogeveen | https://icecast.interip.nl:8000/lohhoogeveen
+Omroep Assen | https://olon.az.icecast.ebsd.ericsson.net/omroep_assen
+Radio Aa en Hunze | https://icecast.radioenhunze.nl/stream
+Radio Drenthe | https://cdn.rtvdrenthe.nl/icecast/rtvdrenthe/rtvradio
+Radio Drèents | https://d3vbm02trh7zmp.cloudfront.net/icecast/rtvdrenthe/radio-dreents
+RTV Meppel | https://nlpo.stream.vip/meppel/mp3-192/nlpo.stream.vip/ https://d2eanln3bsfb0d.cloudfront.net/nlpo/clr-nlpo/rtvmeppel/audio-eng-aaclc160/index.m3u8
+Tynaarlo Lokaal | https://mediaserv68.live-streams.nl:18019/stream
+ZO!34 | https://mcp-2.mm-stream.nl:7000/stream
+
+# Overijssel
+1Twente Enschede | https://stream1.icehosting.nl/1twente/stream
+1Twente Hengelo | https://stream1.icehosting.nl/1twente-hengelo/;stream.mp3
+AccentFM | https://stream.accentfm.nl/
+Delta FM | http://stream.deltafm.nl:8123/
+DNO Radio Noord Overijssel | https://dnomedia.rtvstream.nl:8046/dno2
+Deventer RTV | https://stream.deventerrtv.nl:8443/mp3
+Hofstreek TV/FM | http://server-20.stream-server.nl:8818/;?.mp3
+HOi FM | https://i1.cdn.jetstre.am:8001/sz=Hellendoorn=Hoi
+Koekstad Radio | https://server-67.stream-server.nl:8788/stream
+NOOS | https://omroepnoos.rtvstream.nl:9049/noos
+Radio 350 | http://stream.radio350.nl:8000/radio350
+Radio Zwolle | https://mediacp.audiostreamen.nl:2000/stream/8172
+RTV Borne | https://stream1.icehosting.nl/borneinbeeld/stream
+Radio Focus 105 | http://185.10.48.127:8088/stream.mp3
+RTV Hattem | https://ice.cr6.streamzilla.xlcdn.com:8000/sz=RTV_Hattem=RadioHattem
+RTV IJsselmond | https://cdn.omroepserver.nl:8443/rtvijsselmond
+RTV Losser | https://mediacp.audiostreamen.nl:2000/stream/rtv-losser
+RTV Oost | https://streams.rtvoost.nl/audio/oost/mp3
+RTV SLOS | https://redbeemedia.streamabc.net/redbm-rtvslos-mp3-192-3641369
+RTV Sternet | http://stream1.icehosting.nl:1073/;stream.mp3
+Vechtdal FM | https://streams.rtvvechtdal.nl/VechtdalFM.mp3
+Vechtdal NL | https://streams.rtvvechtdal.nl/VechtdalNL.mp3
+Salland 1 | https://stream.and-stuff.nl:8443/live-airplay_320
+Salland 747 | http://rs2.stream24.org:8270/live.mp3
+Streektaal Radio | https://msic.mx-cd.net/284-3373600/Streektaal_Radio
+Twente FM | http://caster02.streampakket.com:8004/high https://stream.twentefm.nl/proxy/8004/high
+Zwartewater FM | https://cloud-faro.beheerstream.com/proxy/zwartewaterfm?mp=/stream
+
+# Flevoland
+EASY 95.5 FM | https://nlpo.stream.vip/easyfm/mp3-192/nlpo.stream.vip/
+Lokale Omroep Zeewolde | http://stream.lokaleomroepzeewolde.nl:8000/normal
+Omroep Almere | https://stream.omroepalmere.nl/live
+Omroep Flevoland | https://stream.omroepflevoland.nl/icecast/omroepflevoland/stream2
+Radio Lelystad | https://nlpo.stream.vip/lelystad/mp3-192/nlpo.stream.vip/
+Urk FM | http://live.urkfm.nl:8000/urkfm.mp3
+Urk FM Geestelijk | http://live.urkfm.nl:8000/geestelijk.mp3
+
+# Gelderland
+1Achterhoek | https://nlpo.stream.vip/achterhoek/mp3-192/nlpo.stream.vip/
+1 Vallei | https://xon.luisteren.link/1vallei
+A1 Radio | https://stream.a1mediagroep.nl/a1radio_256
+Aladna FM | https://aladnafm.beheerstream.nl/8024/stream
+EDE FM | https://xon.luisteren.link/edefm
+GL8 | https://stream.stream.delivery/gl8media
+LEUK FM | https://nlpo.stream.vip/leukfm/mp3-192/nlpo.stream.vip/
+LocoFM | https://i1.cdn.jetstre.am:8000/sz=LocoMedia=LocoFM
+Lokale Omroep Elburg | https://loestream.nl/live.aac
+Omroep Berg en Dal | https://cc6.beheerstream.com/proxy/bergendal?mp=/stream
+Omroep Gelderland | https://d2od87akyl46nm.cloudfront.net/icecast/omroepgelderland/radiogelderland
+Omroep Lingewaard | https://live.omroeplingewaard.nl/mid-aac
+Radio Ideaal | https://ms3ic.mx-cd.net/236-2051376/Ideaal_Radio
+REGIO8 | https://radio.regio8.nl/regio8
+Rhenen FM | https://xon.luisteren.link/rhenenfm
+Radio RN7 | https://stream.stream.delivery/rn7 | https://streaming.rn7.nl/rn7live_abr/visualradio/playlist.m3u8
+Radio RN7 NL | https://stream.stream.delivery/rn7nl
+RTV 794 | https://nlpo.stream.vip/radio794fm/mp3-192/nlpo/
+RTV Apeldoorn | https://streamingradio.rtv-apeldoorn.nl/listen/radio_apeldoorn/rtvapeldoornmid.mp3
+RTV Berkelstroom | http://213.202.241.176:8892/stream
+RTV Connect | https://nlpo.stream.vip/connectfm/mp3-192/nlpo.stream.vip/
+RTV Nunspeet | https://msic.mx-cd.net/262-2600790/Radio_Nunspeet
+RTV Rijnstreek | https://centova.verrips.email/proxy/rtvrijnstreek/stream
+RTV Slingeland | https://ms3ic.mx-cd.net/105-661267/Slingeland_FM
+Samen1 | https://server-67.stream-server.nl:18752/stream
+SRC FM | https://cc6.beheerstream.com/proxy/src1?mp=/stream
+Studio Rheden | https://picy.studiorhedenlive.nl/str
+Veluwe FM | https://server-51.stream-server.nl:18438/stream
+VoorstVeluwezoom | https://nlpo.stream.vip/veluwe/mp3-192/nlpo.stream.vip/
+
+# Utrecht
+Eemland 1 | https://live.eemland1.nl/radio
+EVA | https://stream.mediagroep-eva.nl:8002/radio
+Houten FM | https://mpc2.mediacp.eu:8268/omroephouten
+Radio 90FM | https://regio90_audio.streampartner.nl/live
+Radio Eemland | https://streameemland.nl:8000/radio.mp3
+Radio Midland | https://caster04.streampakket.com/proxy/8216/stream
+Radio Stad Montfoort | http://stream001.digiplay.nl:9038/
+Regio 90 | https://cc6.beheerstream.com/proxy/radio90fmlive
+Roulette FM | https://nlpo.stream.vip/roulette/mp3-192/nlpo.stream.vip/
+RPL Woerden | https://nlpo.stream.vip/rplfm/mp3-192/nlpo.stream.vip/
+RTV Ronde Venen | https://stream.rtvrondevenen.nl:8443/live
+RTV Stichtse Vecht | https://stream.rtvrondevenen.nl:8443/live
+Radio M Utrecht | https://media.rtvutrecht.nl/radiomutrecht-sb-mp3
+Slotstad RTV | https://nlpo.stream.vip/slotstad/mp3-192/nlpo.stream.vip/
+
+# Noord-Holland
+Beat FM Heiloo | https://radioheiloo.nl:7443/bfm1
+Haarlem105 | https://nlpo.stream.vip/harl105/mp3-192/nlpo.stream.vip/
+Haarlem Shuffle Classic Hits | https://nlpo.stream.vip/harlshuf/mp3-192/nlpo.stream.vip/
+Heemskerk FM | https://live.omroepheemskerk.nl/hfm-aac
+HoornRadio | https://server-23.stream-server.nl:18382/;
+JAMM FM | http://stream.jammfm.net:8221
+LOL Landsmeer | https://cloud-faro.beheerstream.com/proxy/omroeplandsmeer
+L.O.V.E. Volendam Edam | https://nlpo.stream.vip/rtvlove/mp3-192/nlpo.stream.vip/
+MeerRadio | https://nlpo.stream.vip/radiomer/mp3-192/nlpo/
+NH Gooi | http://6fm.nl:8000/mp3live
+NH Radio | https://ice.cr6.streamzilla.xlcdn.com:8000/sz=nhnieuws=NHRadio_mp3
+Noordkop Centraal | https://radiostreams.noordkopcentraal.nl:9443/noordkop
+Omroep Diemen Studio DMN | https://stream.it-facilities.be:9006/stream
+OSU Radio Uitgeest | http://stream.rodney.it/osu
+Radio 9 Oostzaan | http://caster01.streampakket.com:9350/;
+Radio Aalsmeer | https://radioaalsmeer.nl:8443/live
+Radio Beverwijk | http://84.22.99.112:80/beverwijk http://streaming1.stream.delivery/beverwijk/studio/chunklist_w1544685366.m3u8
+Radio Castricum | http://omroepcastricum.ddns.net:8000/128MP3 https://live.prod.quortex.ott.ebsd.ericsson.net/olonradio/castricum105/audio-nl-aaclc128/index.m3u8
+Radio De Blauwe Tegel | https://radioheiloo.nl:4443/dbt1
+Radio Texel | https://cast6.asurahosting.com/proxy/radiotex/stream
+Radio Wormerveer | http://server-51.stream-server.nl:8476/stream
+Rick FM | http://rickfm.myqnapcloud.com:8000/studio.mp3
+RTV 80 | https://nlpo.stream.vip/rtv80/mp3-192/nlpo.stream.vip/
+Regio Noordkop Radio | https://radio.regionoordkop.nl:9443/regionoordkop
+RTV Purmerend | http://stream.zxp.nl:8000/radiopurmerend_bb
+RTV Seaport | https://nlpo.stream.vip/seaport/mp3-192/nlpo.stream.vip/
+RTV IJmond FM | https://nlpo.stream.vip/ijmond/mp3-192/nlpo.stream.vip/
+SALTO CaribbeanFM | https://nlpo.stream.vip/saltocar/mp3-192/nlpo.stream.vip/
+SALTO Mokum Radio | https://nlpo.stream.vip/saltmoku/mp3-192/nlpo.stream.vip/
+SALTO Radio Salto | https://nlpo.stream.vip/saltosta/mp3-192/nlpo.stream.vip/
+SALTO RAZO | https://nlpo.stream.vip/saltoraz/mp3-192/nlpo.stream.vip/
+Streekradio Alkmaar | https://caster04.streampakket.com/proxy/9078/stream
+Streekstad Centraal | https://radiostreams.streekstadcentraal.nl:9443/01
+Radio Dijk&Waard | https://radiostreams.streekstadcentraal.nl:9443/05
+Waterland Radio | https://waterlandradio.beheerstream.nl:7020/stream
+WEEFF | https://ice.cr1.streamzilla.xlcdn.com:8000/sz=weeff=weeffradio
+ZFM Zandvoort | https://icecast.bytesheep.net/zfmzandvoort.mp3
+
+# Zuid-Holland
+ATOS RTV | https://stream.atosrtv.nl:5000/streamhq
+Bollenstreek Omroep | https://stream.bollenstreekomroep.nl/live-mp3-192-stereo
+BR6 | https://qxjr001.digiplay.nl/stream/9160/stream/1/
+Den Haag FM | https://server3.radio-streams.net:18012/denhaagfm
+Den Haag Totaal | https://server3.radio-streams.net:18012/denhaagtotaal
+Dichtbij 106.9 FM | https://players.rcast.net/stream/65402.mp3
+Exxact | https://live.exxact.nl/
+Feel Good Radio | https://ssl.feelgoodradio.eu/proxy/feelgoodradio/stream
+FlakkeeNieuwsRadio | https://server-28.stream-server.nl:8872/stream
+Gouda FM | https://ca2ssl.rcast.net/stream/65065/
+Hofstad Radio | https://solid41.streamupsolutions.com/proxy/toyfkozk?mp=/stream
+Kilrock 1287 AM | https://mediaserv30.live-streams.nl:18013/high
+Klokradio | https://cloud-faro.beheerstream.com/proxy/klokradio?mp=/stream
+Linq FM | https://ms7.mx-cd.net/dtv-21/246-2090024/Linq_Media_Radio.smil/playlist.m3u8
+Lokale Omroep Krimpen | http://live.lokaleomroepkrimpen.nl/;
+Merwe Radio | https://nlpo.stream.vip/merwe/mp3-192/nlpo.stream.vip/
+Midvliet | https://cloud-faro.beheerstream.com/proxy/radlqowi?mp=/midvliet
+Omroep Delft | https://msic.mx-cd.net/234-2008284/Stadsradio_Delft
+Omroep Hoeksche Waard | https://cloud-faro.beheerstream.com/proxy/omroephw?mp=/live
+Omroep West | https://liveradio.omroepwest.nl/
+Radio Capelle | https://live.radiocapelle.nl/radiocapelle-high.mp3
+Radio Erasmus | https://caster04.streampakket.com/proxy/8636/stream
+RTV Albrandswaard | https://streamer.hosting078.nl:1855/stream
+RTV Dordrecht / Drechtstad FM | https://ms3ic.mx-cd.net/107-660395/drechtstad_FM
+RTV Gouwestad | https://stream2.mfmstreaming.nl/8020/stream
+RTV Hollands Midden | https://securestream2.digipal.nl:1805/;stream.mp3
+RTV Katwijk | https://stream.rtvkatwijk.nl:8000/;
+RTV Krimpenerwaard | https://nlpo.stream.vip/rtvkrimp/mp3-192/nlpo.stream.vip/
+RTV Lansingerland | http://37.74.115.63:8300/live
+RTV Papendrecht | https://nlpo.stream.vip/drecht/mp3-192/nlpo.stream.vip/
+RTV Ridderkerk | https://nlpo.stream.vip/ridderk/mp3-192/nlpo.stream.vip/
+RTV Rijnmond | https://dcur8bjarl5c2.cloudfront.net/icecast/rijnmond/radio-mp3
+RTW Waddinxveen | https://player.streamforce.nl:8502/stream
+Sleutelstad | https://sleutelstad.radioca.st/stream
+Studio Alphen | https://nlpo.stream.vip/alphen/mp3-192/nlpo/
+Studio Kaag en Braassem | https://caster04.streampakket.com/proxy/8420/stream1
+Twee (Vlaardingen, Schiedam) | https://redbeemedia.streamabc.net/redbm-schiefm-mp3-192-2552573
+Unity NL | https://icecast.rudeboymedia.nl/unitynl.mp3
+Unity.NU | https://icecast.rudeboymedia.nl/unitynu071.mp3
+WOS.NL | https://ms3ic.mx-cd.net/99-661261/Radio_WOS
+ZFM Zoetermeer | http://kippingmultimediaal.nl:8000/ZFMmobiel
+
+# Zeeland
+Omroep Archipel | https://radio.rtvslogo.nl:8443/live
+Omroep Tholen | https://stream06.dotpoint.nl:8065/stream
+Omroep Zeeland | https://d3isaxd2t6q8zm.cloudfront.net/icecast/omroepzeeland/omroepzeeland_radio
+Omroep ZVL | https://go_fm.streampartner.nl/live?type=.mp3
+Radio De Honte | http://185.142.142.40:8008/stream
+Radio Schouwen-Duiveland | https://s32.myradiostream.com/17098/
+RTV Scheldemond FM | https://stream.scheldemondfm.nl:8200/;
+SOBFM | https://stream.sobfm.nl:8443/stream
+ZeeuwsFM | https://server-28.stream-server.nl:8838/stream
+
+# Noord-Brabant
+Avulo FM | https://radio.avulo.nl/stream
+BredaNu | https://icecast.bredanu.nl/high
+DMG Radio Deurne | http://s22.myradiostream.com:13628
+Eén FM | http://5.135.154.91:6344/stream/1/
+Glow FM | https://stream.glowfm.nl/glowfm.mp3
+IRONRTV | https://caster04.streampakket.com/proxy/8390/stream.mp3
+Kempen FM | https://mediacp.audiostreamen.nl/musicbiz
+L-fm | https://stream.l-fm.nl:8443/;
+Langstraat FM | https://nlpo.stream.vip/langstra/mp3-192/nlpo.stream.vip/
+Langstraat NL | https://mediaserv30.live-streams.nl:18001/stream
+Lokaal 7 FM | https://live.i-novativeradio.com/lokaal7
+Lokale Omroep Baarle | http://s40.myradiostream.com:21042/stream
+LOG Radio Goirle | https://nlpo.stream.vip/logfm/mp3-192/nlpo.stream.vip/
+Maasland FM | https://liveradio.dtvstreams.nl/listen/mfm/mfm.mp3
+MFM Uden | https://nlpo.stream.vip/mfmuden/mp3-192/nlpo.stream.vip/
+NOVO3 | https://nlpo.stream.vip/vughtseomroep/mp3-192/nlpo.stream.vip/
+OM Radio Meierij | https://ms7.mx-cd.net/dtv-21/186-793538/Radio_Omroep_Meierij.smil/playlist.m3u8
+Omroep Best | http://109.235.33.237:8000/omroep.mp3
+Omroep Brabant | http://av.omroepbrabant.nl/icecast/omroepbrabant/mp3
+Omroep Dommelland | https://nlpo.stream.vip/dommelland/mp3-192/nlpo.stream.vip/
+Omroep Drimmelen | https://nlpo.stream.vip/drimmelen/mp3-192/nlpo.stream.vip/
+Omroep Helmond | http://stream.omroephelmond.nl:8024/;stream.mp
+Omroep Land van Cuijk | https://nlpo.stream.vip/cuijkrad/mp3-192/nlpo.stream.vip/
+Omroep Peelrand | https://sonic.magicdragon.nl/8048/stream
+Omroep Tilburg | https://ms7.mx-cd.net/radio/184-782330/Omroep_Tilburg_Radio.smil/playlist.m3u8
+Omroep Veldhoven | http://77.166.186.207:8000/Veldhoven
+ORTS Radio Oosterhout | https://live.i-novativeradio.com/orts
+Punt24 | http://media1.hostin.cc/punt24.mp3
+Radio73 | http://91.224.242.202:80/radio73
+Radio 8FM | https://playerservices.streamtheworld.com/api/livestream-redirect/8FM.mp3
+Radio A-FM | https://nlpo.stream.vip/radioafm/mp3-192/nlpo.stream.vip/
+Radio Rucphen | https://stream.rucphenrtv.nl/radiorucphen.mp3
+Radio S&B | https://nlpo.stream.vip/breugel/mp3-192/nlpo.stream.vip/
+RTV Horizon | https://www.rtvhorizon.nl/radiostream/mp3
+SLOG Radio | http://5.102.141.42:8000/Slog.mp3
+SLOS | https://i2.cdn.jetstre.am:8001/sz=SLOSteenbergen=SLOS
+Studio040 | https://stream.studio040.nl/studio040.mp3
+VLOHradio | https://stream.vlohradio.nl/vlohradio.mp3
+Zuidwest FM | https://icecast.zuidwestfm.nl/zuidwest.mp3
+
+# Limburg
+BieOs Radio | https://nlpo.stream.vip/stein/mp3-192/nlpo
+L1 Radio Limburg | https://d34pj260kw1xmk.cloudfront.net/icecast/l1/radio-bb-mp3
+L1 Plat-eweg | https://d34pj260kw1xmk.cloudfront.net/icecast/l1/plat-eweg-bb-mp3
+Maasland Radio | http://stream.maaslandradio.nl:9094/player.mp3
+Radio Maasduinen | http://radiomaasduinen.gkstreamen.nl:8052/;
+Omroep Horst aan de Maas | https://ms10.mx-cd.net/dtv-21/157-660305/Omroep_Horst_aan_de_Maas.smil/playlist.m3u8
+Omroep ML5 | https://mediacp.audiostreamen.nl:2000/stream/8182/stream
+Omroep P en M | https://ms3ic.mx-cd.net/153-661255/Radio_Peel_en_Maas
+Omroep Venlo Radio | https://nlpo.stream.vip/venlo/mp3-192/nlpo
+Omroep Venray | https://nlpo.stream.vip/venray/mp3-192/nlpo.stream.vip/
+Radio BNT | https://streams.automates.media/radiobnt
+Radio Venloosch | https://radiovenloosch.stream.laut.fm/radiovenloosch
+Radio Venlostedje | https://venlostedje.stream.laut.fm/venlostedje
+RTV Maas en Mergelland | http://caster04.streampakket.com:8115/stream
+RTV Maastricht | https://stream.rtvmaastricht.nl/rtv/radio_audio/icecast.audio
+RTV Parkstad | https://stream.rtvparkstad.nl/rtvparkstad.mp3
+SOL2 Radio | https://nlpo.stream.vip/sol2/mp3-192/nlpo.stream.vip/
+Weert FM | https://msic.mx-cd.net/151-661269/WeertFM
+</script>
+
+<script>
+(function(){
+  "use strict";
+  var $ = function(s){ return document.querySelector(s); };
+  var store = {
+    get: function(k, d){ try { var v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } catch(e){ return d; } },
+    set: function(k, v){ try { localStorage.setItem(k, JSON.stringify(v)); } catch(e){} }
+  };
+
+  // ---------- Data ----------
+  var CAT_CUSTOM = "Eigen zenders";
+  var stations = [], cats = [];
+  function slug(s){ return s.toLowerCase().replace(/[^a-z0-9]+/g, "-"); }
+  (function parse(){
+    var cat = "";
+    $("#data").textContent.split("\n").forEach(function(line){
+      line = line.trim(); if(!line) return;
+      if(line[0] === "#"){ cat = line.slice(1).trim(); if(cats.indexOf(cat) < 0) cats.push(cat); return; }
+      var p = line.split("|").map(function(x){ return x.trim(); });
+      stations.push({ id: slug(cat + " " + p[0]), name: p[0], cat: cat, urls: p[1].split(/\s+/), video: p[2] || "" });
+    });
+  })();
+  var custom = store.get("rs.custom", []);
+  function allStations(){
+    var c = custom.map(function(s){ return { id: s.id, name: s.name, cat: CAT_CUSTOM, urls: s.urls, video: s.video || "", custom: true }; });
+    return c.concat(stations);
+  }
+  var favs = store.get("rs.favs", []);
+
+  // ---------- State ----------
+  var state = { cat: "all", q: "", cur: null, idx: 0, video: false };
+  var media = $("#media");
+  var hls = null;
+
+  function hue(name){ var h = 0; for(var i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) % 360; return h; }
+  function initials(name){
+    var w = name.replace(/[^\p{L}\p{N}\s]/gu, " ").trim().split(/\s+/);
+    if(/^\d/.test(w[0])) return w[0].slice(0, 3);
+    return (w[0][0] + (w[1] ? w[1][0] : (w[0][1] || ""))).toUpperCase();
+  }
+  function esc(s){ return s.replace(/[&<>"]/g, function(c){ return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]; }); }
+
+  // ---------- Chips ----------
+  function renderChips(){
+    var list = [["all","Alles"],["fav","Favorieten"],["video","Met beeld"]];
+    cats.forEach(function(c){ list.push([c, c]); });
+    if(custom.length) list.push([CAT_CUSTOM, CAT_CUSTOM]);
+    $("#chips").innerHTML = list.map(function(c){
+      return '<button class="chip" data-cat="' + esc(c[0]) + '" aria-pressed="' + (state.cat === c[0]) + '">' + esc(c[1]) + '</button>';
+    }).join("");
+  }
+  $("#chips").addEventListener("click", function(e){
+    var b = e.target.closest(".chip"); if(!b) return;
+    state.cat = b.dataset.cat; renderChips(); render();
+  });
+
+  // ---------- Grid ----------
+  function visible(){
+    var q = state.q.trim().toLowerCase();
+    return allStations().filter(function(s){
+      if(state.cat === "fav" && favs.indexOf(s.id) < 0) return false;
+      if(state.cat === "video" && !s.video) return false;
+      if(state.cat !== "all" && state.cat !== "fav" && state.cat !== "video" && s.cat !== state.cat) return false;
+      if(q && (s.name + " " + s.cat).toLowerCase().indexOf(q) < 0) return false;
+      return true;
+    });
+  }
+  var heart = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 21s-7.5-4.6-9.6-9.2C.8 8.3 2.7 5 6 5c2 0 3.4 1.1 4 2.3h4C14.6 6.1 16 5 18 5c3.3 0 5.2 3.3 3.6 6.8C19.5 16.4 12 21 12 21z"/></svg>';
+  var trash = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 12h10l1-12M9 7V4h6v3"/></svg>';
+  function render(){
+    var list = visible();
+    var title = state.cat === "all" ? "Alle zenders" : state.cat === "fav" ? "Favorieten" : state.cat === "video" ? "Zenders met live beeld" : state.cat;
+    $("#heading").textContent = state.q ? "Zoekresultaten" : title;
+    $("#hint").textContent = list.length + (list.length === 1 ? " zender" : " zenders");
+    $("#count").textContent = "· " + (stations.length + custom.length) + " zenders";
+    if(!list.length){
+      $("#grid").innerHTML = '<div class="empty">' + (state.cat === "fav" ? "Nog geen favorieten. Tik op het hartje bij een zender." : "Geen zenders gevonden.") + '</div>';
+      return;
+    }
+    $("#grid").innerHTML = list.map(function(s){
+      var h = hue(s.name), isCur = state.cur && state.cur.id === s.id;
+      return '<div class="cardwrap" style="position:relative;min-width:0">' +
+        '<button class="card" data-id="' + esc(s.id) + '" aria-current="' + !!isCur + '">' +
+          '<span class="tile" style="background:linear-gradient(135deg,hsl(' + h + ' 62% 46%),hsl(' + ((h + 40) % 360) + ' 62% 38%))">' + esc(initials(s.name)) +
+          '<span class="eq" aria-hidden="true"><i></i><i></i><i></i></span></span>' +
+          '<span class="txt"><span class="name">' + esc(s.name) + '</span>' +
+          '<span class="sub">' + esc(s.cat) + (s.video ? ' <span class="badge">Beeld</span>' : '') + '</span></span>' +
+        '</button>' +
+        '<button class="fav" style="position:absolute;top:8px;right:8px;width:30px;height:30px;border-radius:9px;border:0;background:transparent;display:grid;place-items:center;color:' + (favs.indexOf(s.id) >= 0 ? '#e0457b' : 'var(--muted)') + '" data-fav="' + esc(s.id) + '" aria-pressed="' + (favs.indexOf(s.id) >= 0) + '" aria-label="Favoriet: ' + esc(s.name) + '">' + heart.replace("<svg", '<svg style="width:18px;height:18px"') + '</button>' +
+        (s.custom ? '<button class="del" style="position:absolute;bottom:8px;right:8px;width:30px;height:30px;border-radius:9px;border:0;background:transparent;display:grid;place-items:center;color:var(--muted)" data-del="' + esc(s.id) + '" aria-label="Verwijder ' + esc(s.name) + '">' + trash.replace("<svg", '<svg style="width:18px;height:18px"') + '</button>' : '') +
+      '</div>';
+    }).join("");
+  }
+  $("#grid").addEventListener("click", function(e){
+    var f = e.target.closest("[data-fav]");
+    if(f){ var id = f.dataset.fav, i = favs.indexOf(id); if(i >= 0) favs.splice(i, 1); else favs.push(id); store.set("rs.favs", favs); render(); return; }
+    var d = e.target.closest("[data-del]");
+    if(d){ custom = custom.filter(function(s){ return s.id !== d.dataset.del; }); store.set("rs.custom", custom); if(state.cat === CAT_CUSTOM && !custom.length) state.cat = "all"; renderChips(); render(); return; }
+    var c = e.target.closest(".card");
+    if(c){ var st = allStations().filter(function(s){ return s.id === c.dataset.id; })[0]; if(st) play(st, false); }
+  });
+  $("#q").addEventListener("input", function(e){ state.q = e.target.value; render(); });
+
+  // ---------- Playback ----------
+  function sources(){ var s = state.cur; return state.video && s.video ? [s.video].concat(s.urls) : s.urls; }
+  function destroyHls(){ if(hls){ try { hls.destroy(); } catch(e){} hls = null; } }
+  function attach(url){
+    destroyHls();
+    media.removeAttribute("src"); media.load();
+    if(/\.m3u8(\?|$)/i.test(url)){
+      if(media.canPlayType("application/vnd.apple.mpegurl")){ media.src = url; }
+      else if(window.Hls && Hls.isSupported()){
+        hls = new Hls({ lowLatencyMode: false });
+        hls.on(Hls.Events.ERROR, function(_, d){ if(d.fatal) onFail(); });
+        hls.loadSource(url); hls.attachMedia(media);
+      } else { onFail(); return false; }
+    } else { media.src = url; }
+    return true;
+  }
+  function startSource(){
+    var url = sources()[state.idx];
+    if(!url){ fail(); return; }
+    if(location.protocol === "https:" && url.indexOf("http:") === 0){ state.skipped = true; state.idx++; startSource(); return; }
+    setStatus("Verbinden…");
+    if(!attach(url)) return;
+    var p = media.play();
+    if(p && p.catch) p.catch(function(err){ if(err && err.name !== "AbortError" && err.name !== "NotAllowedError") onFail(); else if(err && err.name === "NotAllowedError") setStatus("Tik op afspelen om te starten"); });
+  }
+  function onFail(){ state.idx++; startSource(); }
+  function fail(){
+    var msg = state.skipped ? "Deze stream gebruikt http. Open dit bestand lokaal of via http." : "Stream niet bereikbaar. Probeer een andere zender.";
+    setStatus(msg, true);
+    document.body.classList.remove("is-playing");
+  }
+  function play(st, video){
+    state.cur = st; state.idx = 0; state.skipped = false; state.video = !!(video && st.video);
+    store.set("rs.last", st.id);
+    updateNow(); updateVideoUI(); render(); startSource(); updateSession();
+  }
+  function setStatus(t, err, live){
+    var el = $("#nowStatus");
+    el.className = err ? "err" : "";
+    el.innerHTML = live ? '<i class="live"></i>' + esc(t) : esc(t);
+  }
+  function updateNow(){
+    var s = state.cur; if(!s) return;
+    $("#nowName").textContent = s.name;
+    var t = $("#nowTile"), h = hue(s.name);
+    t.style.background = "linear-gradient(135deg,hsl(" + h + " 62% 46%),hsl(" + ((h + 40) % 360) + " 62% 38%))";
+    t.style.color = "#fff"; t.style.fontFamily = "var(--font-display)"; t.style.fontWeight = "800";
+    t.textContent = initials(s.name);
+    $("#videoBtn").hidden = !s.video;
+  }
+  function updateVideoUI(){
+    var on = state.video && state.cur && state.cur.video;
+    $("#vpanel").hidden = !on;
+    $("#videoBtn").setAttribute("aria-pressed", String(!!on));
+    $("#vname").textContent = state.cur ? state.cur.name + " · live beeld" : "";
+  }
+  $("#videoBtn").addEventListener("click", function(){
+    if(!state.cur || !state.cur.video) return;
+    state.video = !state.video; state.idx = 0; state.skipped = false;
+    updateVideoUI(); startSource();
+  });
+  $("#vclose").addEventListener("click", function(){
+    state.video = false; state.idx = 0; updateVideoUI(); startSource();
+  });
+
+  function setPlayingUI(on){
+    $("#icoPlay").hidden = on; $("#icoPause").hidden = !on;
+    $("#toggle").setAttribute("aria-label", on ? "Pauzeren" : "Afspelen");
+    document.body.classList.toggle("is-playing", on);
+  }
+  media.addEventListener("playing", function(){ setPlayingUI(true); setStatus("Live", false, true); });
+  media.addEventListener("waiting", function(){ if(state.cur) setStatus("Bufferen…"); });
+  media.addEventListener("pause", function(){ setPlayingUI(false); if(state.cur && !media.ended) setStatus("Gepauzeerd"); });
+  media.addEventListener("error", function(){ if(state.cur && media.getAttribute("src")) onFail(); });
+  media.addEventListener("stalled", function(){ /* wacht op herstel */ });
+
+  $("#toggle").addEventListener("click", togglePlay);
+  function togglePlay(){
+    if(!state.cur){ var l = visible()[0]; if(l) play(l, false); return; }
+    if(media.paused){
+      // Bij live radio liever opnieuw verbinden dan oude buffer afspelen
+      if(!state.video || !media.src) { state.idx = 0; state.skipped = false; startSource(); }
+      else media.play().catch(function(){ state.idx = 0; startSource(); });
+    } else { media.pause(); }
+  }
+  function step(d){
+    var list = visible(); if(!list.length) return;
+    var i = state.cur ? list.findIndex(function(s){ return s.id === state.cur.id; }) : -1;
+    var n = list[(i + d + list.length) % list.length];
+    play(n, false);
+  }
+  $("#prev").addEventListener("click", function(){ step(-1); });
+  $("#next").addEventListener("click", function(){ step(1); });
+
+  var vol = store.get("rs.vol", 0.8);
+  media.volume = vol; $("#vol").value = vol;
+  $("#vol").addEventListener("input", function(e){ media.volume = +e.target.value; store.set("rs.vol", +e.target.value); });
+
+  document.addEventListener("keydown", function(e){
+    if(e.code === "Space" && document.activeElement === document.body){ e.preventDefault(); togglePlay(); }
+  });
+
+  // Media Session (vergrendelscherm, mediatoetsen)
+  function updateSession(){
+    if(!("mediaSession" in navigator) || !state.cur) return;
+    try { navigator.mediaSession.metadata = new MediaMetadata({ title: state.cur.name, artist: "Radiostreams NL", album: state.cur.cat }); } catch(e){}
+  }
+  if("mediaSession" in navigator){
+    try {
+      navigator.mediaSession.setActionHandler("play", togglePlay);
+      navigator.mediaSession.setActionHandler("pause", function(){ media.pause(); });
+      navigator.mediaSession.setActionHandler("previoustrack", function(){ step(-1); });
+      navigator.mediaSession.setActionHandler("nexttrack", function(){ step(1); });
+    } catch(e){}
+  }
+
+  // ---------- Casten ----------
+  var toastTimer;
+  function toast(t){
+    var old = $(".toast"); if(old) old.remove();
+    var d = document.createElement("div"); d.className = "toast"; d.setAttribute("role", "status"); d.textContent = t;
+    document.body.appendChild(d); clearTimeout(toastTimer); toastTimer = setTimeout(function(){ d.remove(); }, 5000);
+  }
+  $("#castBtn").addEventListener("click", function(){
+    if(!state.cur){ toast("Kies eerst een zender en tik dan op Cast."); return; }
+    if(hls){ toast("Deze stream loopt via een HLS-speler en kan in Chrome niet gecast worden. Probeer Safari (AirPlay) of een andere zender."); return; }
+    if(media.remote && media.remote.prompt){
+      media.remote.prompt().catch(function(err){
+        if(err && err.name === "NotFoundError") toast("Geen cast-apparaten gevonden op dit netwerk.");
+        else if(err && err.name === "NotSupportedError") toast("Casten van deze stream wordt niet ondersteund.");
+        else if(err && err.name !== "AbortError") toast("Casten is niet gelukt. Controleer of je tv of speaker op hetzelfde wifi-netwerk zit.");
+      });
+    } else if(media.webkitShowPlaybackTargetPicker){
+      media.webkitShowPlaybackTargetPicker();
+    } else {
+      toast("Casten werkt in Chrome en Edge (Chromecast, Google Cast) en in Safari (AirPlay). Firefox ondersteunt dit niet.");
+    }
+  });
+  if(media.remote){
+    var setCast = function(){ $("#castBtn").setAttribute("aria-pressed", String(media.remote.state === "connected")); };
+    media.remote.addEventListener("connect", setCast);
+    media.remote.addEventListener("disconnect", setCast);
+    media.remote.addEventListener("connecting", setCast);
+  }
+
+  // ---------- Eigen zender ----------
+  var dlg = $("#dlg");
+  $("#addBtn").addEventListener("click", function(){ $("#addForm").reset(); dlg.showModal(); $("#fName").focus(); });
+  $("#fCancel").addEventListener("click", function(){ dlg.close(); });
+  $("#addForm").addEventListener("submit", function(e){
+    e.preventDefault();
+    var name = $("#fName").value.trim(), url = $("#fUrl").value.trim(), v = $("#fVideo").value.trim();
+    if(!name || !url) return;
+    custom.unshift({ id: "eigen-" + Date.now(), name: name, urls: [url], video: v });
+    store.set("rs.custom", custom); dlg.close();
+    state.cat = CAT_CUSTOM; renderChips(); render();
+  });
+
+  // ---------- Thema ----------
+  $("#themeBtn").addEventListener("click", function(){
+    var r = document.documentElement, cur = r.getAttribute("data-theme");
+    var dark = cur ? cur === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
+    var next = dark ? "light" : "dark";
+    r.setAttribute("data-theme", next); store.set("rs.theme", next);
+  });
+  var th = store.get("rs.theme", null); if(th) document.documentElement.setAttribute("data-theme", th);
+
+  // ---------- Installeren als app ----------
+  var deferredInstall = null;
+  var standalone = matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
+  var isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  var installBtn = $("#installBtn");
+  window.addEventListener("beforeinstallprompt", function(e){
+    e.preventDefault(); deferredInstall = e;
+    if(!standalone) installBtn.hidden = false;
+  });
+  window.addEventListener("appinstalled", function(){ installBtn.hidden = true; deferredInstall = null; toast("Radiostreams staat nu op je beginscherm."); });
+  if(isIOS && !standalone) installBtn.hidden = false;
+  installBtn.addEventListener("click", function(){
+    if(deferredInstall){
+      deferredInstall.prompt();
+      deferredInstall.userChoice.then(function(){ deferredInstall = null; installBtn.hidden = true; });
+    } else if(isIOS){
+      toast("Tik op het deel-icoon in Safari en kies 'Zet op beginscherm'.");
+    }
+  });
+  if("serviceWorker" in navigator && /^https?:$/.test(location.protocol)){
+    window.addEventListener("load", function(){ navigator.serviceWorker.register("sw.js").catch(function(){}); });
+  }
+
+  // ---------- Start ----------
+  renderChips(); render();
+  var lastId = store.get("rs.last", null);
+  var last = lastId && allStations().filter(function(s){ return s.id === lastId; })[0];
+  if(last){ state.cur = last; updateNow(); updateVideoUI(); setStatus("Tik op afspelen om verder te luisteren"); render(); }
+})();
+</script>
+</body>
+</html>
